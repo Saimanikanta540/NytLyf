@@ -12,7 +12,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getCategoryBySlug, getEventsByCategory } from '../../src/data/mockData';
+import { mockCategories } from '../../src/data/mockData';
+import { useEvents } from '../../hooks/useEvents';
 import { useTheme } from '../../src/contexts/ThemeContext';
 
 const getIconName = (slug: string): keyof typeof Ionicons.glyphMap => {
@@ -32,8 +33,9 @@ export default function CategoryEventsScreen() {
   const router = useRouter();
   const { colors } = useTheme();
 
-  const category = getCategoryBySlug(slug);
-  const events = getEventsByCategory(slug);
+  const { events } = useEvents();
+  const category = mockCategories.find(c => c.slug === slug);
+  const filteredEvents = events.filter(e => e.category.slug === slug || e.category.name.toLowerCase() === slug);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -58,12 +60,12 @@ export default function CategoryEventsScreen() {
           />
         </View>
         <Text style={[styles.categoryTitle, { color: colors.text.primary }]}>{category?.name || 'Category'}</Text>
-        <Text style={[styles.eventCount, { color: colors.text.tertiary }]}>{events.length} events</Text>
+        <Text style={[styles.eventCount, { color: colors.text.tertiary }]}>{filteredEvents.length} events</Text>
       </LinearGradient>
     </View>
   );
 
-  const renderEvent = ({ item }: { item: typeof events[0] }) => (
+  const renderEvent = ({ item }: { item: typeof filteredEvents[0] }) => (
     <TouchableOpacity
       style={[styles.eventCard, { backgroundColor: colors.background.secondary }]}
       onPress={() => router.push(`/event/${item._id}`)}
@@ -131,7 +133,7 @@ export default function CategoryEventsScreen() {
       </SafeAreaView>
 
       <FlatList
-        data={events}
+        data={filteredEvents}
         keyExtractor={(item) => item._id}
         renderItem={renderEvent}
         ListHeaderComponent={renderHeader}

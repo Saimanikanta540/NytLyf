@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../src/constants/theme';
 import { useTheme } from '../src/contexts/ThemeContext';
-import { mockEvents } from '../src/data/mockData';
+import { useEvents } from '../hooks/useEvents';
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -23,7 +23,7 @@ export default function SearchScreen() {
 
   // Simple client-side filtering of mock data
   const results = query.length >= 2
-    ? mockEvents.filter(event =>
+    ? events.filter(event =>
       event.title.toLowerCase().includes(query.toLowerCase()) ||
       event.venue.name.toLowerCase().includes(query.toLowerCase())
     )
@@ -38,7 +38,7 @@ export default function SearchScreen() {
     });
   };
 
-  const renderEvent = ({ item }: { item: typeof mockEvents[0] }) => (
+  const renderEvent = ({ item }: { item: typeof filteredEvents[0] }) => (
     <TouchableOpacity
       style={[styles.eventCard, { backgroundColor: colors.background.secondary }]}
       onPress={() => router.push(`/event/${item._id}`)}

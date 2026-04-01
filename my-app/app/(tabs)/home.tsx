@@ -15,13 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  mockEvents,
-  mockCategories,
-  mockAds,
-  getFeaturedEvents,
-  getTrendingEvents
-} from '../../src/data/mockData';
+import { mockCategories, mockAds } from '../../src/data/mockData';
+import { useEvents } from '../../hooks/useEvents';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { HeroAdCarousel } from '../../src/components/ads/HeroAdCarousel';
 import { AdBanner } from '../../src/components/ads/AdBanner';
@@ -35,8 +30,9 @@ export default function HomeScreen() {
   const { colors } = useTheme();
   const [selectedDate, setSelectedDate] = useState<DateFilter>('today');
 
-  const featuredEvents = getFeaturedEvents();
-  const trendingEvents = getTrendingEvents();
+  const { events } = useEvents();
+  const featuredEvents = events.filter(e => e.isFeatured);
+  const trendingEvents = events.filter(e => e.isTrending);
   const heroAds = mockAds.filter(a => a.placement === 'home_hero' && a.isActive).sort((a, b) => b.priority - a.priority);
   const midGraphicAd = mockAds.find(a => a.placement === 'home_mid' && a.isActive);
   const topTextAd = mockAds.find(a => a.placement === 'home_top' && a.isActive);
@@ -57,7 +53,7 @@ export default function HomeScreen() {
     });
   };
 
-  const renderFeaturedEvent = ({ item }: { item: typeof mockEvents[0] }) => (
+  const renderFeaturedEvent = ({ item }: { item: typeof events[0] }) => (
     <TouchableOpacity
       style={styles.featuredCard}
       onPress={() => router.push(`/event/${item._id}`)}
@@ -101,7 +97,7 @@ export default function HomeScreen() {
     </TouchableOpacity>
   );
 
-  const renderEventCard = (event: typeof mockEvents[0]) => (
+  const renderEventCard = (event: typeof events[0]) => (
     <TouchableOpacity
       key={event._id}
       style={[styles.eventCard, { backgroundColor: colors.background.secondary }]}
@@ -285,7 +281,7 @@ export default function HomeScreen() {
           </ScrollView>
 
           {/* Event Cards */}
-          {mockEvents.slice(0, 3).map(renderEventCard)}
+          {events.slice(0, 3).map(renderEventCard)}
         </View>
 
         {/* Mid Page Graphic Ad */}
@@ -631,3 +627,4 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 });
+

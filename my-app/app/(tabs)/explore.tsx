@@ -12,7 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { mockEvents, mockAds } from '../../src/data/mockData';
+import { mockAds } from '../../src/data/mockData';
+import { useEvents } from '../../hooks/useEvents';
 import { useTheme } from '../../src/contexts/ThemeContext';
 
 export default function ExploreScreen() {
@@ -23,7 +24,9 @@ export default function ExploreScreen() {
 
   const filters = ['All', 'Free', 'Today', 'Trending'];
 
-  const filteredEvents = mockEvents.filter(event => {
+  const { events } = useEvents();
+
+  const filteredEvents = events.filter(event => {
     if (activeFilter === 'Free') return event.pricing.isFree;
     if (activeFilter === 'Trending') return event.isTrending;
     if (searchQuery) {
@@ -402,3 +405,4 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 });
+

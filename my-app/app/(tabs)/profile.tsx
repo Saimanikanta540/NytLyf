@@ -1,5 +1,5 @@
-// Profile Screen with Mock Data
-import React from 'react';
+// Profile Screen connected to backend
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,14 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { mockUser } from '../../src/data/mockData';
+import { useRouter } from 'expo-router';
+import { clearToken } from '../../src/api/authStorage';
+import { getProfile } from '../../src/api/client';
 import { useTheme } from '../../src/contexts/ThemeContext';
 
 interface MenuItemProps {
@@ -25,7 +28,25 @@ interface MenuItemProps {
 }
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { colors, isDark, toggleTheme } = useTheme();
+  
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        const res = await getProfile();
+        setUser(res.data);
+      } catch (error) {
+        console.error('Failed to load profile', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadProfile();
+  }, []);
 
   const MenuItem: React.FC<MenuItemProps> = ({
     icon,
@@ -47,6 +68,17 @@ export default function ProfileScreen() {
       )}
     </TouchableOpacity>
   );
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background.primary, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.neon.pink} />
+      </View>
+    );
+  }
+
+  // Fallback in case user data fails to load but they are authenticated
+  const displayUser = user || { name: 'User', email: 'Loading...', bookmarks: [] };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
@@ -73,19 +105,17 @@ export default function ProfileScreen() {
             style={styles.avatarGradient}
           >
             <Text style={styles.avatarText}>
-              {mockUser.name.charAt(0).toUpperCase()}
+              {displayUser.name.charAt(0).toUpperCase()}
             </Text>
           </LinearGradient>
 
           <View style={styles.profileInfo}>
-            <Text style={[styles.profileName, { color: colors.text.primary }]}>{mockUser.name}</Text>
-            <Text style={[styles.profileEmail, { color: colors.text.tertiary }]}>{mockUser.email}</Text>
-            {mockUser.isVerified && (
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="shield-checkmark" size={12} color={colors.neon.blue} />
-                <Text style={[styles.verifiedText, { color: colors.neon.blue }]}>Verified</Text>
-              </View>
-            )}
+            <Text style={[styles.profileName, { color: colors.text.primary }]}>{displayUser.name}</Text>
+            <Text style={[styles.profileEmail, { color: colors.text.tertiary }]}>{displayUser.email}</Text>
+            <View style={styles.verifiedBadge}>
+              <Ionicons name="shield-checkmark" size={12} color={colors.neon.blue} />
+              <Text style={[styles.verifiedText, { color: colors.neon.blue }]}>Verified User</Text>
+            </View>
           </View>
 
           <TouchableOpacity style={[styles.editButton, { backgroundColor: colors.background.tertiary }]}>
@@ -96,17 +126,17 @@ export default function ProfileScreen() {
         {/* Stats */}
         <View style={[styles.statsContainer, { backgroundColor: colors.background.secondary }]}>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.text.primary }]}>{mockUser.savedEvents.length}</Text>
+            <Text style={[styles.statValue, { color: colors.text.primary }]}>{displayUser.bookmarks?.length || 0}</Text>
             <Text style={[styles.statLabel, { color: colors.text.tertiary }]}>Saved</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: colors.border.subtle }]} />
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.text.primary }]}>12</Text>
+            <Text style={[styles.statValue, { color: colors.text.primary }]}>{displayUser.attendedEvents?.length || 0}</Text>
             <Text style={[styles.statLabel, { color: colors.text.tertiary }]}>Attended</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: colors.border.subtle }]} />
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.text.primary }]}>3</Text>
+            <Text style={[styles.statValue, { color: colors.text.primary }]}>{displayUser.upcomingEvents?.length || 0}</Text>
             <Text style={[styles.statLabel, { color: colors.text.tertiary }]}>Upcoming</Text>
           </View>
         </View>
@@ -151,6 +181,10 @@ export default function ProfileScreen() {
             label="Log Out"
             danger
             showArrow={false}
+            onPress={async () => {
+              await clearToken();
+              router.replace('/(auth)/login');
+            }}
           />
         </View>
 
