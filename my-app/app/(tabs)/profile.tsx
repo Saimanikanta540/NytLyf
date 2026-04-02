@@ -11,11 +11,22 @@ import {
   Modal,
   TextInput,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import * as Location from 'expo-location';
+
+// Conditional import for MapView to avoid web crashes
+let MapView: any, Marker: any, PROVIDER_GOOGLE: any;
+if (Platform.OS !== 'web') {
+  const Maps = require('react-native-maps');
+  MapView = Maps.default;
+  Marker = Maps.Marker;
+  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
+}
 import { clearToken } from '../../src/api/authStorage';
 import { getProfile, updateProfile } from '../../src/api/client';
 import { useTheme } from '../../src/contexts/ThemeContext';
@@ -28,6 +39,13 @@ interface MenuItemProps {
   showArrow?: boolean;
   danger?: boolean;
   rightElement?: React.ReactNode;
+}
+
+interface Region {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
 }
 
 export default function ProfileScreen() {
@@ -43,8 +61,29 @@ export default function ProfileScreen() {
   const [editEmail, setEditEmail] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Location Map State
+  const [isMapVisible, setIsMapVisible] = useState(false);
+  const [locationName, setLocationName] = useState('Hyderabad');
+  const [selectedRegion, setSelectedRegion] = useState<Region>({
+    latitude: 17.3850,
+    longitude: 78.4867,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  });
+  const [tempRegion, setTempRegion] = useState<Region>(selectedRegion);
+  const [isLocating, setIsLocating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+
   useEffect(() => {
     loadProfile();
+    // Request permissions for map functionality
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Permission to access location was denied');
+      }
+    })();
   }, []);
 
   async function loadProfile() {
@@ -59,6 +98,35 @@ export default function ProfileScreen() {
       setLoading(false);
     }
   }
+
+  const handleSearchLocation = async () => {
+    if (!searchQuery.trim()) return;
+    setIsSearching(true);
+    try {
+      const results = await Location.geocodeAsync(searchQuery);
+      if (results.length > 0) {
+        const { latitude, longitude } = results[0];
+        const newRegion = {
+          latitude,
+          longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        };
+        setTempRegion(newRegion);
+        const reverse = await Location.reverseGeocodeAsync({ latitude, longitude });
+        if (reverse.length > 0) {
+          const city = reverse[0].city || reverse[0].district || reverse[0].name;
+          if (city) setLocationName(city);
+        }
+      } else {
+        Alert.alert('Not Found', 'Could not find the location you searched for.');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'An error occurred while searching.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const handleUpdateProfile = async () => {
     if (!editName.trim() || !editEmail.trim()) {
@@ -75,6 +143,52 @@ export default function ProfileScreen() {
       Alert.alert('Update Failed', error.message || 'Something went wrong.');
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleGetCurrentLocation = async () => {
+    setIsLocating(true);
+    try {
+      let location = await Location.getCurrentPositionAsync({});
+      const newRegion = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+      setTempRegion(newRegion);
+      const reverse = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      });
+      if (reverse.length > 0) {
+        const city = reverse[0].city || reverse[0].region || reverse[0].name;
+        if (city) setLocationName(city);
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Could not get your current location.');
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
+  const handleConfirmLocation = async () => {
+    setSelectedRegion(tempRegion);
+    setIsMapVisible(false);
+    try {
+      const reverse = await Location.reverseGeocodeAsync({
+        latitude: tempRegion.latitude,
+        longitude: tempRegion.longitude
+      });
+      if (reverse.length > 0) {
+        const city = reverse[0].city || reverse[0].district || reverse[0].name;
+        if (city) {
+          setLocationName(city);
+          Alert.alert('Location Updated', `Your location has been set to ${city}.`);
+        }
+      }
+    } catch (err) {
+      console.error('Reverse geocode error', err);
     }
   };
 
@@ -182,31 +296,40 @@ export default function ProfileScreen() {
         </View>
 
         {/* My Bookings Section */}
-        {displayUser.bookings && displayUser.bookings.length > 0 && (
-          <View style={styles.menuSection}>
-            <Text style={[styles.menuSectionTitle, { color: colors.text.tertiary }]}>My Bookings</Text>
-            {displayUser.bookings.map((booking: any, index: number) => (
-              <TouchableOpacity 
-                key={index} 
-                style={[styles.bookingItem, { backgroundColor: colors.background.secondary }]}
-                onPress={() => router.push(`/event/${booking.event._id || booking.event.id}`)}
-              >
-                <View style={[styles.bookingCategory, { backgroundColor: (booking.event.category?.color || colors.neon.pink) + '20' }]}>
-                  <Ionicons name="ticket" size={20} color={booking.event.category?.color || colors.neon.pink} />
-                </View>
-                <View style={styles.bookingInfo}>
-                  <Text style={[styles.bookingTitle, { color: colors.text.primary }]} numberOfLines={1}>
-                    {booking.event.title}
-                  </Text>
-                  <Text style={[styles.bookingDate, { color: colors.text.tertiary }]}>
-                    {new Date(booking.event.date).toLocaleDateString()} • {booking.ticketCount} Ticket(s)
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.text.tertiary} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+        <View style={styles.menuSection}>
+          <Text style={[styles.menuSectionTitle, { color: colors.text.tertiary }]}>My Bookings</Text>
+          {displayUser.bookings && displayUser.bookings.length > 0 ? (
+            displayUser.bookings.map((booking: any, index: number) => {
+              // Safety check in case the event was deleted from DB
+              if (!booking.event) return null;
+              
+              return (
+                <TouchableOpacity 
+                  key={index} 
+                  style={[styles.bookingItem, { backgroundColor: colors.background.secondary }]}
+                  onPress={() => router.push(`/event/${booking.event._id || booking.event.id}`)}
+                >
+                  <View style={[styles.bookingCategory, { backgroundColor: (booking.event.category?.color || colors.neon.pink) + '20' }]}>
+                    <Ionicons name="ticket" size={20} color={booking.event.category?.color || colors.neon.pink} />
+                  </View>
+                  <View style={styles.bookingInfo}>
+                    <Text style={[styles.bookingTitle, { color: colors.text.primary }]} numberOfLines={1}>
+                      {booking.event.title}
+                    </Text>
+                    <Text style={[styles.bookingDate, { color: colors.text.tertiary }]}>
+                      {new Date(booking.event.date).toLocaleDateString()} • {booking.ticketCount} Ticket(s)
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.text.tertiary} />
+                </TouchableOpacity>
+              );
+            })
+          ) : (
+            <Text style={[styles.emptySectionText, { color: colors.text.tertiary }]}>
+              You haven't booked any events yet.
+            </Text>
+          )}
+        </View>
 
         {/* Saved Events Section */}
         {displayUser.bookmarks && displayUser.bookmarks.length > 0 && (
@@ -264,7 +387,7 @@ export default function ProfileScreen() {
           <MenuItem 
             icon="location-outline" 
             label="Location Settings" 
-            onPress={() => handleFeatureNotImplemented('Location')} 
+            onPress={() => setIsMapVisible(true)} 
           />
         </View>
 
@@ -410,6 +533,98 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      {/* Location Picker Modal */}
+      <Modal
+        visible={isMapVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setIsMapVisible(false)}
+      >
+        <SafeAreaView style={[styles.mapModalContainer, { backgroundColor: colors.background.primary }]}>
+          <View style={styles.mapModalHeader}>
+            <TouchableOpacity 
+              onPress={() => setIsMapVisible(false)}
+              style={styles.modalCloseBtn}
+            >
+              <Ionicons name="close" size={28} color={colors.text.primary} />
+            </TouchableOpacity>
+            <Text style={[styles.modalTitle, { color: colors.text.primary }]}>Change Location</Text>
+            <View style={{ width: 40 }} />
+          </View>
+
+          <View style={styles.mapContainer}>
+            <MapView
+              provider={PROVIDER_GOOGLE}
+              style={styles.map}
+              initialRegion={selectedRegion}
+              onRegionChangeComplete={(region) => setTempRegion(region)}
+            >
+              <Marker
+                coordinate={{
+                  latitude: tempRegion.latitude,
+                  longitude: tempRegion.longitude,
+                }}
+                pinColor={colors.neon.pink}
+              />
+            </MapView>
+
+            <View style={styles.mapOverlay}>
+              {/* Search Bar */}
+              <View style={[styles.searchBar, { backgroundColor: colors.background.secondary }]}>
+                <TextInput
+                  style={[styles.searchInput, { color: colors.text.primary }]}
+                  placeholder="Search for a location..."
+                  placeholderTextColor={colors.text.tertiary}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  onSubmitEditing={handleSearchLocation}
+                  returnKeyType="search"
+                />
+                <TouchableOpacity 
+                  style={styles.searchBtn}
+                  onPress={handleSearchLocation}
+                  disabled={isSearching}
+                >
+                  {isSearching ? (
+                    <ActivityIndicator size="small" color={colors.neon.pink} />
+                  ) : (
+                    <Ionicons name="search" size={20} color={colors.neon.pink} />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.myLocationBtn, { backgroundColor: colors.background.secondary }]}
+                onPress={handleGetCurrentLocation}
+                disabled={isLocating}
+              >
+                {isLocating ? (
+                  <ActivityIndicator color={colors.neon.pink} />
+                ) : (
+                  <Ionicons name="locate" size={24} color={colors.neon.pink} />
+                )}
+              </TouchableOpacity>
+
+              <View style={[styles.locationInfo, { backgroundColor: colors.background.secondary }]}>
+                <Ionicons name="location" size={20} color={colors.neon.pink} />
+                <Text style={[styles.locationInfoText, { color: colors.text.primary }]} numberOfLines={1}>
+                  {locationName}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity 
+              style={[styles.confirmLocationBtn, { backgroundColor: colors.neon.pink }]}
+              onPress={handleConfirmLocation}
+            >
+              <Text style={styles.confirmLocationText}>Confirm Location</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
       </Modal>
     </View>
   );
@@ -574,6 +789,12 @@ const styles = StyleSheet.create({
   bookingDate: {
     fontSize: 12,
   },
+  emptySectionText: {
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: 16,
+    fontStyle: 'italic',
+  },
   version: {
     fontSize: 12,
     textAlign: 'center',
@@ -633,5 +854,101 @@ const styles = StyleSheet.create({
   saveText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Map Modal Styles
+  mapModalContainer: {
+    flex: 1,
+  },
+  mapModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  modalCloseBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  mapOverlay: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    right: 16,
+    gap: 12,
+  },
+  myLocationBtn: {
+    alignSelf: 'flex-end',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  locationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  locationInfoText: {
+    fontSize: 15,
+    fontWeight: '600',
+    flex: 1,
+  },
+  modalFooter: {
+    padding: 20,
+  },
+  confirmLocationBtn: {
+    height: 52,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmLocationText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 50,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    height: '100%',
+  },
+  searchBtn: {
+    padding: 8,
   },
 });

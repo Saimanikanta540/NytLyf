@@ -15,13 +15,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../src/constants/theme';
 import { useTheme } from '../src/contexts/ThemeContext';
 import { useEvents } from '../hooks/useEvents';
+import { Event } from '../src/types';
 
 export default function SearchScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const [query, setQuery] = useState('');
 
-  // Simple client-side filtering of mock data
+  const { events = [] } = useEvents();
+
+  // Simple client-side filtering
   const results = query.length >= 2
     ? events.filter(event =>
       event.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -38,7 +41,7 @@ export default function SearchScreen() {
     });
   };
 
-  const renderEvent = ({ item }: { item: typeof filteredEvents[0] }) => (
+  const renderEvent = ({ item }: { item: Event }) => (
     <TouchableOpacity
       style={[styles.eventCard, { backgroundColor: colors.background.secondary }]}
       onPress={() => router.push(`/event/${item._id}`)}

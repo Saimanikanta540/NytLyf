@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { mockCategories } from '../../src/data/mockData';
 import { useEvents } from '../../hooks/useEvents';
 import { useTheme } from '../../src/contexts/ThemeContext';
+import { Event } from '../../src/types';
 
 const getIconName = (slug: string): keyof typeof Ionicons.glyphMap => {
   const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -65,7 +66,7 @@ export default function CategoryEventsScreen() {
     </View>
   );
 
-  const renderEvent = ({ item }: { item: typeof filteredEvents[0] }) => (
+  const renderEvent = ({ item }: { item: Event }) => (
     <TouchableOpacity
       style={[styles.eventCard, { backgroundColor: colors.background.secondary }]}
       onPress={() => router.push(`/event/${item._id}`)}

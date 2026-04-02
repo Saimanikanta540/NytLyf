@@ -44,8 +44,18 @@ const seedDatabase = async () => {
     const createdCategories = await Category.insertMany(categoryData);
     console.log(`Created ${createdCategories.length} Categories`);
 
-    // 3. Generate 10 Events for each Category
-    const eventsToInsert = [];
+    // 3. Define Cities and Venues
+    const cities = [
+      { name: 'Hyderabad', lat: 17.3850, lng: 78.4867, areas: ['Jubilee Hills', 'Banjara Hills', 'Gachibowli', 'Hitech City', 'Kondapur'] },
+      { name: 'Bangalore', lat: 12.9716, lng: 77.5946, areas: ['Indiranagar', 'Koramangala', 'MG Road', 'Whitefield', 'HSR Layout'] },
+      { name: 'Mumbai', lat: 19.0760, lng: 72.8777, areas: ['Bandra', 'Andheri', 'Colaba', 'Juhu', 'Worli'] },
+      { name: 'Delhi', lat: 28.6139, lng: 77.2090, areas: ['CP', 'Hauz Khas', 'Saket', 'Gurgaon', 'Noida'] },
+      { name: 'Goa', lat: 15.2993, lng: 74.1240, areas: ['Anjuna', 'Baga', 'Calangute', 'Panjim', 'Vagator'] }
+    ];
+
+    const venueSuffixes = ['Arena', 'Club', 'Lounge', 'Garden', 'Plaza', 'Stadium', 'Cafe', 'Resort'];
+
+    // 4. Images
     const images = [
       'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&q=80', // Party
       'https://images.unsplash.com/photo-1540039155732-61dd80bd3f18?w=800&q=80', // Concert
@@ -56,32 +66,51 @@ const seedDatabase = async () => {
       'https://images.unsplash.com/photo-1585699324551-f6c309eedeca?w=800&q=80'   // Comedy Shows
     ];
 
-    createdCategories.forEach((category, catIndex) => {
-      for (let i = 1; i <= 10; i++) {
-        // Generate random future date within the next 3 months
-        const futureDate = new Date();
-        futureDate.setDate(futureDate.getDate() + Math.floor(Math.random() * 90) + 1);
-        futureDate.setHours(18 + Math.floor(Math.random() * 5), 0, 0, 0); // Evening events
+    const eventTitles = {
+      'Party': ['Summer Splash', 'Neon Night', 'Midnight Madness', 'House Party Vibes', 'Rooftop Revelry'],
+      'Concert': ['Live & Loud', 'Acoustic Soul', 'Rock On!', 'Pop Sensation', 'Indie Night'],
+      'Meetup': ['Tech Talk', 'Startup Mixer', 'Book Club', 'Networking Brunch', 'Photography Walk'],
+      'Exclusive': ['VIP Gala', 'Black Tie Soiree', 'Luxury Yacht Party', 'Secret Underground', 'Invite Only'],
+      'Festival': ['Color Carnival', 'Food Fiesta', 'Arts & Beats', 'Global Fusion', 'Harvest Jubilee'],
+      'Clubbing': ['Techno Takeover', 'EDM Explosion', 'Hip Hop Heavyweights', 'Deep House session', 'Bass Drop'],
+      'Comedy Shows': ['Laughter Therapy', 'Stand Up Special', 'Open Mic Night', 'Improv Chaos', 'Comic Relief']
+    };
 
-        eventsToInsert.push({
-          title: `Amazing ${category.name} Experience ${i}`,
-          description: `Join us for the best ${category.name.toLowerCase()} event in the city! Expect great vibes, amazing crowds, and unforgettable memories. Grab your tickets before they sell out!`,
-          category: category._id,
-          locationName: `Premium Venue ${i}, Hyderabad`,
-          latitude: 17.3850 + (Math.random() * 0.1 - 0.05), // Around Hyderabad
-          longitude: 78.4867 + (Math.random() * 0.1 - 0.05),
-          eventDate: futureDate,
-          price: Math.floor(Math.random() * 2000) + 500, // Price between 500 and 2500
-          availableTickets: Math.floor(Math.random() * 300) + 50, // Between 50 and 350
-          image: images[catIndex], // Assign image based on category
-          organizer: organizer._id,
-          isTrending: i <= 2 // The first 2 events in every category will be trending
-        });
-      }
-    });
+    const eventsToInsert = [];
+
+    // Generate 150 events total (across all cities and categories)
+    for (let i = 0; i < 150; i++) {
+      const city = cities[Math.floor(Math.random() * cities.length)];
+      const area = city.areas[Math.floor(Math.random() * city.areas.length)];
+      const catIndex = Math.floor(Math.random() * createdCategories.length);
+      const category = createdCategories[catIndex];
+      const titles = eventTitles[category.name];
+      const title = titles[Math.floor(Math.random() * titles.length)] + ` ${Math.floor(Math.random() * 100)}`;
+      const venue = `${area} ${venueSuffixes[Math.floor(Math.random() * venueSuffixes.length)]}`;
+      
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + Math.floor(Math.random() * 90) + 1);
+      futureDate.setHours(18 + Math.floor(Math.random() * 5), 0, 0, 0);
+
+      eventsToInsert.push({
+        title: title,
+        description: `Experience the most talked about ${category.name.toLowerCase()} in ${city.name}! Join us at ${venue} for an evening of ${category.name.toLowerCase()}. Don't miss out on this incredible event in ${area}.`,
+        category: category._id,
+        locationName: `${venue}, ${city.name}`,
+        latitude: city.lat + (Math.random() * 0.05 - 0.025),
+        longitude: city.lng + (Math.random() * 0.05 - 0.025),
+        eventDate: futureDate,
+        price: Math.floor(Math.random() * 3000) + 200,
+        availableTickets: Math.floor(Math.random() * 500) + 20,
+        image: images[catIndex],
+        organizer: organizer._id,
+        isTrending: Math.random() > 0.8,
+        isFeatured: Math.random() > 0.85
+      });
+    }
 
     await Event.insertMany(eventsToInsert);
-    console.log(`Successfully seeded ${eventsToInsert.length} events! (10 per category)`);
+    console.log(`Successfully seeded ${eventsToInsert.length} events across 5 cities!`);
 
     console.log('Database Seeding Complete!');
     process.exit();

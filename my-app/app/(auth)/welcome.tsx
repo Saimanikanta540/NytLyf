@@ -34,7 +34,7 @@ export default function WelcomeScreen() {
         >
           <SafeAreaView style={styles.content}>
             <View style={styles.header}>
-              <Text style={styles.appName}>NYTLYF</Text>
+              <Text style={styles.appName}>NytLyf</Text>
               <View style={[styles.badge, { backgroundColor: colors.neon.pink }]}>
                 <Text style={styles.badgeText}>Live the Night</Text>
               </View>
