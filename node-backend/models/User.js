@@ -32,6 +32,22 @@ const userSchema = new mongoose.Schema({
   upcomingEvents: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Event'
+  }],
+  bookings: [{
+    event: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Event',
+      required: true
+    },
+    ticketCount: {
+      type: Number,
+      required: true,
+      default: 1
+    },
+    bookingDate: {
+      type: Date,
+      default: Date.now
+    }
   }]
 }, {
   timestamps: true,

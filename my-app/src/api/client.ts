@@ -80,3 +80,27 @@ export async function register(name: string, email: string, password: string) {
 export async function getProfile() {
   return request<any>(`/api/users/profile`);
 }
+
+export async function updateProfile(data: { name?: string; email?: string; password?: string }) {
+  return request<any>(`/api/users/profile`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function bookTickets(eventId: string, ticketCount: number) {
+  return request<any>(`/api/users/book/${eventId}`, {
+    method: 'POST',
+    body: JSON.stringify({ ticketCount }),
+  });
+}
+
+export async function getBookmarks() {
+  return request<any[]>(`/api/users/bookmarks`);
+}
+
+export async function toggleBookmark(eventId: string) {
+  return request<string[]>(`/api/users/bookmark/${eventId}`, {
+    method: 'POST',
+  });
+}

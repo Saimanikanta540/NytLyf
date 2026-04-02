@@ -6,7 +6,21 @@ const Event = require('../models/Event');
 // @access  Private
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id)
+      .populate({
+        path: 'bookings.event',
+        populate: {
+          path: 'category',
+          select: 'name icon color'
+        }
+      })
+      .populate({
+        path: 'bookmarks',
+        populate: {
+          path: 'category',
+          select: 'name icon color'
+        }
+      });
     
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
@@ -15,6 +29,35 @@ exports.getProfile = async (req, res) => {
     res.status(200).json({
       success: true,
       data: user
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Update user profile
+// @route   PUT /api/users/profile
+// @access  Private
+exports.updateProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    user.name = req.body.name || user.name;
+    user.email = req.body.email || user.email;
+
+    if (req.body.password) {
+      user.password = req.body.password;
+    }
+
+    const updatedUser = await user.save();
+
+    res.status(200).json({
+      success: true,
+      data: updatedUser
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -72,6 +115,52 @@ exports.getBookmarkedEvents = async (req, res) => {
       success: true,
       count: user.bookmarks.length,
       data: user.bookmarks
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Book tickets for an event
+// @route   POST /api/users/book/:eventId
+// @access  Private
+exports.bookEvent = async (req, res) => {
+  try {
+    const { ticketCount } = req.body;
+    const event = await Event.findById(req.params.eventId);
+
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    if (!ticketCount || ticketCount < 1) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid ticket count' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Add booking to user
+    user.bookings.push({
+      event: req.params.eventId,
+      ticketCount,
+      bookingDate: new Date()
+    });
+
+    // Also add user to event attendees if not already there
+    if (!event.attendees.includes(req.user.id)) {
+      event.attendees.push(req.user.id);
+      await event.save();
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Successfully booked tickets!',
+      data: user.bookings
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

@@ -1,5 +1,5 @@
 // Event Detail Screen with Mock Data
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,9 @@ import {
   TouchableOpacity,
   Dimensions,
   Share,
+  Modal,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +21,7 @@ import { mockAds } from '../../src/data/mockData';
 import { useEvent } from '../../hooks/useEvents';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { AdBanner } from '../../src/components/ads/AdBanner';
+import { bookTickets, getProfile, toggleBookmark } from '../../src/api/client';
 
 const { width, height } = Dimensions.get('window');
 const HEADER_HEIGHT = height * 0.4;
@@ -28,8 +32,28 @@ export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const [isSaved, setIsSaved] = useState(false);
+  const [isBookingModalVisible, setIsBookingModalVisible] = useState(false);
+  const [ticketCount, setTicketCount] = useState(1);
+  const [isBooking, setIsBooking] = useState(false);
 
   const { event } = useEvent(id);
+
+  useEffect(() => {
+    // Check if the event is already saved by the user
+    const checkSavedStatus = async () => {
+      try {
+        const profileData = await getProfile();
+        const bookmarks = profileData.data.bookmarks || [];
+        const isBookmarked = bookmarks.some((b: any) => b._id === id || b === id);
+        setIsSaved(isBookmarked);
+      } catch (err) {
+        console.error('Failed to fetch profile for bookmark status', err);
+      }
+    };
+    if (id) {
+      checkSavedStatus();
+    }
+  }, [id]);
 
   if (!event) {
     return (
@@ -45,6 +69,26 @@ export default function EventDetailScreen() {
       </View>
     );
   }
+
+  const handleToggleBookmark = async () => {
+    if (!id) return;
+    try {
+      const newState = !isSaved;
+      setIsSaved(newState); // Optimistic UI update
+      await toggleBookmark(id as string);
+      
+      Alert.alert(
+        newState ? "Event Saved!" : "Event Removed",
+        newState 
+          ? "This event has been added to your saved list." 
+          : "This event has been removed from your saved list.",
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      setIsSaved(!isSaved); // Revert on failure
+      Alert.alert('Error', 'Failed to update saved events.');
+    }
+  };
 
   const handleShare = async () => {
     try {
@@ -67,6 +111,24 @@ export default function EventDetailScreen() {
     });
   };
 
+  const handleBookTickets = async () => {
+    if (!id) return;
+    setIsBooking(true);
+    try {
+      await bookTickets(id as string, ticketCount);
+      setIsBookingModalVisible(false);
+      Alert.alert(
+        "Booking Confirmed!",
+        `Successfully booked ${ticketCount} ticket(s) for ${event.title}.`,
+        [{ text: "OK", onPress: () => router.push('/profile') }]
+      );
+    } catch (error: any) {
+      Alert.alert("Booking Failed", error.message || "Something went wrong. Please try again.");
+    } finally {
+      setIsBooking(false);
+    }
+  };
+
   const midAd = mockAds.find(a => a.placement === 'home_mid');
 
   return (
@@ -84,29 +146,32 @@ export default function EventDetailScreen() {
             style={styles.headerGradient}
           />
 
-          {/* Back Button */}
-          <TouchableOpacity
-            style={[styles.headerBtn, { top: insets.top + 8, left: 16 }]}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="close" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          {/* Action Buttons */}
-          <View style={[styles.actionButtons, { top: insets.top + 8 }]}>
-            <TouchableOpacity style={styles.headerBtn} onPress={handleShare}>
-              <Ionicons name="share-outline" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
+          {/* Top Actions Bar */}
+          <View style={[styles.topActionBar, { top: Math.max(insets.top, 16) }]}>
+            {/* Back Button */}
             <TouchableOpacity
               style={styles.headerBtn}
-              onPress={() => setIsSaved(!isSaved)}
+              onPress={() => router.back()}
             >
-              <Ionicons
-                name={isSaved ? 'bookmark' : 'bookmark-outline'}
-                size={22}
-                color={isSaved ? colors.neon.pink : "#FFFFFF"}
-              />
+              <Ionicons name="close" size={24} color="#FFFFFF" />
             </TouchableOpacity>
+
+            {/* Action Buttons */}
+            <View style={styles.actionButtons}>
+              <TouchableOpacity style={styles.headerBtn} onPress={handleShare}>
+                <Ionicons name="share-outline" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.headerBtn}
+                onPress={handleToggleBookmark}
+              >
+                <Ionicons
+                  name={isSaved ? 'bookmark' : 'bookmark-outline'}
+                  size={22}
+                  color={isSaved ? colors.neon.pink : "#FFFFFF"}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Badges */}
@@ -229,6 +294,83 @@ export default function EventDetailScreen() {
         </View>
       </ScrollView>
 
+      {/* Booking Modal */}
+      <Modal
+        visible={isBookingModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsBookingModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalDismiss} 
+            activeOpacity={1} 
+            onPress={() => setIsBookingModalVisible(false)} 
+          />
+          <View style={[styles.modalContent, { backgroundColor: colors.background.secondary }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text.primary }]}>Select Tickets</Text>
+              <TouchableOpacity onPress={() => setIsBookingModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.bookingDetails}>
+              <Text style={[styles.bookingEventTitle, { color: colors.text.primary }]}>{event.title}</Text>
+              <Text style={[styles.bookingVenue, { color: colors.text.tertiary }]}>{event.venue.name}</Text>
+              
+              <View style={styles.counterRow}>
+                <Text style={[styles.counterLabel, { color: colors.text.primary }]}>No. of Tickets</Text>
+                <View style={styles.counter}>
+                  <TouchableOpacity 
+                    style={[styles.counterBtn, { borderColor: colors.border.subtle }]}
+                    onPress={() => setTicketCount(Math.max(1, ticketCount - 1))}
+                  >
+                    <Ionicons name="remove" size={20} color={colors.text.primary} />
+                  </TouchableOpacity>
+                  <Text style={[styles.counterText, { color: colors.text.primary }]}>{ticketCount}</Text>
+                  <TouchableOpacity 
+                    style={[styles.counterBtn, { borderColor: colors.border.subtle }]}
+                    onPress={() => setTicketCount(ticketCount + 1)}
+                  >
+                    <Ionicons name="add" size={20} color={colors.text.primary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {!event.pricing.isFree && (
+                <View style={styles.totalRow}>
+                  <Text style={[styles.totalLabel, { color: colors.text.tertiary }]}>Total Price</Text>
+                  <Text style={[styles.totalValue, { color: colors.neon.pink }]}>₹{event.pricing.startingPrice * ticketCount}</Text>
+                </View>
+              )}
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.confirmBtn, isBooking && { opacity: 0.7 }]} 
+              onPress={handleBookTickets}
+              disabled={isBooking}
+            >
+              <LinearGradient
+                colors={[colors.neon.pink, colors.neon.purple]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.ctaGradient}
+              >
+                {isBooking ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Text style={[styles.ctaText, { color: '#FFFFFF' }]}>Confirm Booking</Text>
+                    <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* CTA Footer */}
       <View style={[styles.ctaContainer, {
         paddingBottom: insets.bottom + 8,
@@ -245,7 +387,10 @@ export default function EventDetailScreen() {
             </>
           )}
         </View>
-        <TouchableOpacity style={styles.ctaButton}>
+        <TouchableOpacity 
+          style={styles.ctaButton}
+          onPress={() => setIsBookingModalVisible(true)}
+        >
           <LinearGradient
             colors={[colors.neon.pink, colors.neon.purple]}
             start={{ x: 0, y: 0 }}
@@ -304,8 +449,16 @@ const styles = StyleSheet.create({
     right: 0,
     height: '50%',
   },
-  headerBtn: {
+  topActionBar: {
     position: 'absolute',
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  headerBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -314,8 +467,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   actionButtons: {
-    position: 'absolute',
-    right: 16,
     flexDirection: 'row',
     gap: 8,
   },
@@ -507,5 +658,87 @@ const styles = StyleSheet.create({
   ctaText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalDismiss: {
+    flex: 1,
+  },
+  modalContent: {
+    padding: 24,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  bookingDetails: {
+    marginBottom: 32,
+  },
+  bookingEventTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  bookingVenue: {
+    fontSize: 14,
+    marginBottom: 24,
+  },
+  counterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  counterLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  counter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  counterBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  counterText: {
+    fontSize: 18,
+    fontWeight: '700',
+    minWidth: 24,
+    textAlign: 'center',
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  totalLabel: {
+    fontSize: 14,
+  },
+  totalValue: {
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  confirmBtn: {
+    width: '100%',
   },
 });

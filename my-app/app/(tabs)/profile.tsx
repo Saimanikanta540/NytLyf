@@ -8,13 +8,16 @@ import {
   TouchableOpacity,
   Switch,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { clearToken } from '../../src/api/authStorage';
-import { getProfile } from '../../src/api/client';
+import { getProfile, updateProfile } from '../../src/api/client';
 import { useTheme } from '../../src/contexts/ThemeContext';
 
 interface MenuItemProps {
@@ -34,19 +37,50 @@ export default function ProfileScreen() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // Edit Profile Modal State
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+
   useEffect(() => {
-    async function loadProfile() {
-      try {
-        const res = await getProfile();
-        setUser(res.data);
-      } catch (error) {
-        console.error('Failed to load profile', error);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadProfile();
   }, []);
+
+  async function loadProfile() {
+    try {
+      const res = await getProfile();
+      setUser(res.data);
+      setEditName(res.data.name);
+      setEditEmail(res.data.email);
+    } catch (error) {
+      console.error('Failed to load profile', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleUpdateProfile = async () => {
+    if (!editName.trim() || !editEmail.trim()) {
+      Alert.alert('Error', 'Name and Email are required.');
+      return;
+    }
+    setIsUpdating(true);
+    try {
+      const res = await updateProfile({ name: editName, email: editEmail });
+      setUser(res.data);
+      setIsEditModalVisible(false);
+      Alert.alert('Success', 'Profile updated successfully.');
+    } catch (error: any) {
+      Alert.alert('Update Failed', error.message || 'Something went wrong.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleFeatureNotImplemented = (featureName: string) => {
+    Alert.alert('Coming Soon', `${featureName} settings will be available in a future update.`);
+  };
 
   const MenuItem: React.FC<MenuItemProps> = ({
     icon,
@@ -85,7 +119,10 @@ export default function ProfileScreen() {
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text.primary }]}>Profile</Text>
-          <TouchableOpacity style={[styles.settingsButton, { backgroundColor: colors.background.secondary }]}>
+          <TouchableOpacity 
+            style={[styles.settingsButton, { backgroundColor: colors.background.secondary }]}
+            onPress={() => handleFeatureNotImplemented('General Settings')}
+          >
             <Ionicons name="settings-outline" size={24} color={colors.text.primary} />
           </TouchableOpacity>
         </View>
@@ -118,7 +155,10 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          <TouchableOpacity style={[styles.editButton, { backgroundColor: colors.background.tertiary }]}>
+          <TouchableOpacity 
+            style={[styles.editButton, { backgroundColor: colors.background.tertiary }]}
+            onPress={() => setIsEditModalVisible(true)}
+          >
             <Ionicons name="create-outline" size={20} color={colors.neon.pink} />
           </TouchableOpacity>
         </View>
@@ -126,8 +166,8 @@ export default function ProfileScreen() {
         {/* Stats */}
         <View style={[styles.statsContainer, { backgroundColor: colors.background.secondary }]}>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.text.primary }]}>{displayUser.bookmarks?.length || 0}</Text>
-            <Text style={[styles.statLabel, { color: colors.text.tertiary }]}>Saved</Text>
+            <Text style={[styles.statValue, { color: colors.text.primary }]}>{displayUser.bookings?.length || 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.text.tertiary }]}>Bookings</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: colors.border.subtle }]} />
           <View style={styles.statItem}>
@@ -140,6 +180,60 @@ export default function ProfileScreen() {
             <Text style={[styles.statLabel, { color: colors.text.tertiary }]}>Upcoming</Text>
           </View>
         </View>
+
+        {/* My Bookings Section */}
+        {displayUser.bookings && displayUser.bookings.length > 0 && (
+          <View style={styles.menuSection}>
+            <Text style={[styles.menuSectionTitle, { color: colors.text.tertiary }]}>My Bookings</Text>
+            {displayUser.bookings.map((booking: any, index: number) => (
+              <TouchableOpacity 
+                key={index} 
+                style={[styles.bookingItem, { backgroundColor: colors.background.secondary }]}
+                onPress={() => router.push(`/event/${booking.event._id || booking.event.id}`)}
+              >
+                <View style={[styles.bookingCategory, { backgroundColor: (booking.event.category?.color || colors.neon.pink) + '20' }]}>
+                  <Ionicons name="ticket" size={20} color={booking.event.category?.color || colors.neon.pink} />
+                </View>
+                <View style={styles.bookingInfo}>
+                  <Text style={[styles.bookingTitle, { color: colors.text.primary }]} numberOfLines={1}>
+                    {booking.event.title}
+                  </Text>
+                  <Text style={[styles.bookingDate, { color: colors.text.tertiary }]}>
+                    {new Date(booking.event.date).toLocaleDateString()} • {booking.ticketCount} Ticket(s)
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.text.tertiary} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Saved Events Section */}
+        {displayUser.bookmarks && displayUser.bookmarks.length > 0 && (
+          <View style={styles.menuSection}>
+            <Text style={[styles.menuSectionTitle, { color: colors.text.tertiary }]}>Saved Events</Text>
+            {displayUser.bookmarks.map((event: any, index: number) => (
+              <TouchableOpacity 
+                key={index} 
+                style={[styles.bookingItem, { backgroundColor: colors.background.secondary }]}
+                onPress={() => router.push(`/event/${event._id || event.id}`)}
+              >
+                <View style={[styles.bookingCategory, { backgroundColor: (event.category?.color || colors.neon.blue) + '20' }]}>
+                  <Ionicons name="bookmark" size={20} color={event.category?.color || colors.neon.blue} />
+                </View>
+                <View style={styles.bookingInfo}>
+                  <Text style={[styles.bookingTitle, { color: colors.text.primary }]} numberOfLines={1}>
+                    {event.title}
+                  </Text>
+                  <Text style={[styles.bookingDate, { color: colors.text.tertiary }]}>
+                    {new Date(event.eventDate || event.date).toLocaleDateString()} • {event.locationName || (event.venue && event.venue.name)}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.text.tertiary} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {/* Menu Sections */}
         <View style={styles.menuSection}>
@@ -157,22 +251,57 @@ export default function ProfileScreen() {
               />
             }
           />
-          <MenuItem icon="person-outline" label="Edit Profile" />
-          <MenuItem icon="notifications-outline" label="Notifications" />
-          <MenuItem icon="location-outline" label="Location Settings" />
+          <MenuItem 
+            icon="person-outline" 
+            label="Edit Profile" 
+            onPress={() => setIsEditModalVisible(true)} 
+          />
+          <MenuItem 
+            icon="notifications-outline" 
+            label="Notifications" 
+            onPress={() => handleFeatureNotImplemented('Notifications')} 
+          />
+          <MenuItem 
+            icon="location-outline" 
+            label="Location Settings" 
+            onPress={() => handleFeatureNotImplemented('Location')} 
+          />
         </View>
 
         <View style={styles.menuSection}>
           <Text style={[styles.menuSectionTitle, { color: colors.text.tertiary }]}>Support</Text>
-          <MenuItem icon="help-circle-outline" label="Help & Support" />
-          <MenuItem icon="chatbubble-ellipses-outline" label="Contact Us" />
-          <MenuItem icon="star-outline" label="Rate the App" />
+          <MenuItem 
+            icon="help-circle-outline" 
+            label="Help & Support" 
+            onPress={() => handleFeatureNotImplemented('Help & Support')} 
+          />
+          <MenuItem 
+            icon="chatbubble-ellipses-outline" 
+            label="Contact Us" 
+            onPress={() => handleFeatureNotImplemented('Contact Us')} 
+          />
+          <MenuItem 
+            icon="star-outline" 
+            label="Rate the App" 
+            onPress={() => Alert.alert('Rate NYTLYF', 'Would you like to rate us on the App Store?', [
+              { text: 'Later', style: 'cancel' },
+              { text: 'Sure!', onPress: () => {} }
+            ])} 
+          />
         </View>
 
         <View style={styles.menuSection}>
           <Text style={[styles.menuSectionTitle, { color: colors.text.tertiary }]}>Legal</Text>
-          <MenuItem icon="document-text-outline" label="Terms of Service" />
-          <MenuItem icon="shield-outline" label="Privacy Policy" />
+          <MenuItem 
+            icon="document-text-outline" 
+            label="Terms of Service" 
+            onPress={() => handleFeatureNotImplemented('Terms of Service')} 
+          />
+          <MenuItem 
+            icon="shield-outline" 
+            label="Privacy Policy" 
+            onPress={() => handleFeatureNotImplemented('Privacy Policy')} 
+          />
         </View>
 
         <View style={styles.menuSection}>
@@ -182,8 +311,17 @@ export default function ProfileScreen() {
             danger
             showArrow={false}
             onPress={async () => {
-              await clearToken();
-              router.replace('/(auth)/login');
+              Alert.alert('Log Out', 'Are you sure you want to log out?', [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                  text: 'Log Out', 
+                  style: 'destructive',
+                  onPress: async () => {
+                    await clearToken();
+                    router.replace('/(auth)/login');
+                  }
+                }
+              ]);
             }}
           />
         </View>
@@ -192,6 +330,87 @@ export default function ProfileScreen() {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={isEditModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalDismiss} 
+            activeOpacity={1} 
+            onPress={() => setIsEditModalVisible(false)} 
+          />
+          <View style={[styles.modalContent, { backgroundColor: colors.background.secondary }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text.primary }]}>Edit Profile</Text>
+              <TouchableOpacity onPress={() => setIsEditModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.inputLabel, { color: colors.text.tertiary }]}>Full Name</Text>
+              <TextInput
+                style={[
+                  styles.input, 
+                  { 
+                    backgroundColor: colors.background.primary,
+                    color: colors.text.primary,
+                    borderColor: colors.border.subtle
+                  }
+                ]}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Enter your name"
+                placeholderTextColor={colors.text.tertiary}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.inputLabel, { color: colors.text.tertiary }]}>Email Address</Text>
+              <TextInput
+                style={[
+                  styles.input, 
+                  { 
+                    backgroundColor: colors.background.primary,
+                    color: colors.text.primary,
+                    borderColor: colors.border.subtle
+                  }
+                ]}
+                value={editEmail}
+                onChangeText={setEditEmail}
+                placeholder="Enter your email"
+                placeholderTextColor={colors.text.tertiary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.saveBtn, isUpdating && { opacity: 0.7 }]} 
+              onPress={handleUpdateProfile}
+              disabled={isUpdating}
+            >
+              <LinearGradient
+                colors={[colors.neon.pink, colors.neon.purple]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.saveGradient}
+              >
+                {isUpdating ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={[styles.saveText, { color: '#FFFFFF' }]}>Save Changes</Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -329,6 +548,32 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
+  bookingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  bookingCategory: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  bookingInfo: {
+    flex: 1,
+  },
+  bookingTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  bookingDate: {
+    fontSize: 12,
+  },
   version: {
     fontSize: 12,
     textAlign: 'center',
@@ -336,5 +581,57 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 100,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalDismiss: {
+    flex: 1,
+  },
+  modalContent: {
+    padding: 24,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  input: {
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    fontSize: 16,
+  },
+  saveBtn: {
+    marginTop: 24,
+    marginBottom: 32,
+  },
+  saveGradient: {
+    height: 52,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

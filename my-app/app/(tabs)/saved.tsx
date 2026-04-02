@@ -1,5 +1,5 @@
-// Saved Events Screen with Mock Data
-import React from 'react';
+// Saved Events Screen connected to backend
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,21 +7,52 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { mockEvents, mockUser } from '../../src/data/mockData';
 import { useTheme } from '../../src/contexts/ThemeContext';
+import { getBookmarks, toggleBookmark } from '../../src/api/client';
+import { mapBackendEvent } from '../../src/api/adapters';
 
 export default function SavedScreen() {
   const router = useRouter();
   const { colors } = useTheme();
 
-  // Get saved events from mock data
-  const savedEvents = mockEvents.filter(e =>
-    mockUser.savedEvents.includes(e._id)
+  const [savedEvents, setSavedEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch bookmarks when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadBookmarks();
+    }, [])
   );
+
+  const loadBookmarks = async () => {
+    try {
+      const res = await getBookmarks();
+      const mapped = (res.data || []).map(mapBackendEvent);
+      setSavedEvents(mapped);
+    } catch (error) {
+      console.error('Failed to load bookmarks', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveBookmark = async (eventId: string) => {
+    try {
+      // Optimistic update
+      setSavedEvents(prev => prev.filter(e => e._id !== eventId && e.id !== eventId));
+      await toggleBookmark(eventId);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to remove bookmark.');
+      loadBookmarks(); // revert on failure
+    }
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -32,17 +63,17 @@ export default function SavedScreen() {
     });
   };
 
-  const renderEvent = ({ item }: { item: typeof mockEvents[0] }) => (
+  const renderEvent = ({ item }: { item: any }) => (
     <TouchableOpacity
       style={[styles.eventCard, { backgroundColor: colors.background.secondary }]}
-      onPress={() => router.push(`/event/${item._id}`)}
+      onPress={() => router.push(`/event/${item._id || item.id}`)}
       activeOpacity={0.9}
     >
       <Image source={{ uri: item.coverImage }} style={styles.eventImage} />
       <View style={styles.eventContent}>
-        <View style={[styles.smallBadge, { backgroundColor: item.category.color + '30' }]}>
-          <Text style={[styles.smallBadgeText, { color: item.category.color }]}>
-            {item.category.name}
+        <View style={[styles.smallBadge, { backgroundColor: (item.category?.color || colors.neon.pink) + '30' }]}>
+          <Text style={[styles.smallBadgeText, { color: item.category?.color || colors.neon.pink }]}>
+            {item.category?.name || 'Event'}
           </Text>
         </View>
         <Text style={[styles.eventTitle, { color: colors.text.primary }]} numberOfLines={2}>{item.title}</Text>
@@ -52,10 +83,13 @@ export default function SavedScreen() {
         </View>
         <View style={styles.eventMeta}>
           <Ionicons name="location-outline" size={12} color={colors.text.tertiary} />
-          <Text style={[styles.eventMetaText, { color: colors.text.tertiary }]} numberOfLines={1}>{item.venue.name}</Text>
+          <Text style={[styles.eventMetaText, { color: colors.text.tertiary }]} numberOfLines={1}>{item.venue?.name}</Text>
         </View>
       </View>
-      <TouchableOpacity style={styles.removeBtn}>
+      <TouchableOpacity 
+        style={styles.removeBtn}
+        onPress={() => handleRemoveBookmark(item._id || item.id)}
+      >
         <Ionicons name="bookmark" size={20} color={colors.neon.pink} />
       </TouchableOpacity>
     </TouchableOpacity>
@@ -79,6 +113,14 @@ export default function SavedScreen() {
     </View>
   );
 
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background.primary, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.neon.pink} />
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
@@ -92,7 +134,7 @@ export default function SavedScreen() {
 
       <FlatList
         data={savedEvents}
-        keyExtractor={(item) => item._id}
+        keyExtractor={(item) => item._id || item.id}
         renderItem={renderEvent}
         contentContainerStyle={[
           styles.listContent,
