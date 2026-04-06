@@ -1,5 +1,46 @@
 const User = require('../models/User');
 const Event = require('../models/Event');
+const Category = require('../models/Category');
+
+// @desc    Get admin statistics
+// @route   GET /api/users/admin/stats
+// @access  Private/Admin
+exports.getAdminStats = async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const totalEvents = await Event.countDocuments();
+    const totalCategories = await Category.countDocuments();
+    const activeAdmins = await User.countDocuments({ role: 'admin' });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalUsers,
+        totalEvents,
+        totalCategories,
+        activeAdmins
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get all users
+// @route   GET /api/users/admin/all
+// @access  Private/Admin
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select('-password');
+    res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 // @desc    Get user profile
 // @route   GET /api/users/profile

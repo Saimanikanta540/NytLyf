@@ -81,6 +81,10 @@ export async function getProfile() {
   return request<any>(`/api/users/profile`);
 }
 
+export async function getAdminStats() {
+  return request<any>(`/api/users/admin/stats`);
+}
+
 export async function updateProfile(data: { name?: string; email?: string; password?: string }) {
   return request<any>(`/api/users/profile`, {
     method: 'PUT',

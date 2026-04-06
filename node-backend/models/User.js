@@ -33,6 +33,15 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Event'
   }],
+  role: {
+    type: String,
+    enum: ['user', 'organizer', 'admin'],
+    default: 'user'
+  },
+  isAdmin: {
+    type: Boolean,
+    default: false
+  },
   bookings: [{
     event: {
       type: mongoose.Schema.Types.ObjectId,

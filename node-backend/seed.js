@@ -28,7 +28,15 @@ const seedDatabase = async () => {
       email: 'organizer@nytlyf.com',
       password: 'password123', // Will be hashed by the pre-save hook in User model
     });
-    console.log('Created Seed Organizer');
+    
+    // Create the requested Admin User
+    await User.create({
+      name: 'Super Admin',
+      email: 'admin540@gmail.com',
+      password: 'admin540',
+      isAdmin: true
+    });
+    console.log('Created Seed Organizer & Admin');
 
     // 2. Define Categories
     const categoryData = [

@@ -19,14 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 
-// Conditional import for MapView to avoid web crashes
-let MapView: any, Marker: any, PROVIDER_GOOGLE: any;
-if (Platform.OS !== 'web') {
-  const Maps = require('react-native-maps');
-  MapView = Maps.default;
-  Marker = Maps.Marker;
-  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
-}
+import MapView, { Marker, PROVIDER_GOOGLE } from '../../src/components/ui/MapView';
 import { clearToken } from '../../src/api/authStorage';
 import { getProfile, updateProfile } from '../../src/api/client';
 import { useTheme } from '../../src/contexts/ThemeContext';

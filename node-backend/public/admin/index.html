@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NytLyf Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
+    .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center">
+
+  <!-- LOGIN VIEW -->
+  <div id="loginView" class="w-full max-w-md p-8 glass-panel rounded-2xl shadow-2xl">
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-black text-pink-500 tracking-widest mb-2">NYTLYF</h1>
+      <p class="text-slate-400">Admin Portal</p>
+    </div>
+    
+    <form id="loginForm" class="space-y-6">
+      <div>
+        <label class="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+        <input type="email" id="email" required class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white focus:ring-2 focus:ring-pink-500 focus:outline-none" placeholder="admin@nytlyf.com">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-300 mb-2">Password</label>
+        <input type="password" id="password" required class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white focus:ring-2 focus:ring-pink-500 focus:outline-none" placeholder="••••••••">
+      </div>
+      <div id="loginError" class="text-red-400 text-sm hidden text-center"></div>
+      <button type="submit" class="w-full py-3 px-4 bg-pink-600 hover:bg-pink-500 text-white rounded-xl font-bold transition duration-200">
+        Access Dashboard
+      </button>
+    </form>
+  </div>
+
+  <!-- DASHBOARD VIEW (Hidden by default) -->
+  <div id="dashboardView" class="hidden w-full h-screen flex flex-col md:flex-row">
+    
+    <!-- Sidebar -->
+    <aside class="w-full md:w-64 glass-panel border-r border-slate-800 flex flex-col">
+      <div class="p-6 text-center border-b border-slate-800">
+        <h1 class="text-2xl font-black text-pink-500 tracking-widest">NYTLYF</h1>
+        <p class="text-xs text-slate-400 uppercase mt-1 tracking-wider">Admin Dashboard</p>
+      </div>
+      <nav class="flex-1 p-4 space-y-2">
+        <a href="#" onclick="showTab('dashboard')" id="tab-dashboard" class="nav-item flex items-center gap-3 px-4 py-3 bg-pink-600 text-white rounded-xl transition">
+          <i class="fas fa-home w-5 text-center"></i> Overview
+        </a>
+        <a href="#" onclick="showTab('users')" id="tab-users" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-slate-800 rounded-xl transition">
+          <i class="fas fa-users w-5 text-center"></i> Users
+        </a>
+        <a href="#" onclick="showTab('events')" id="tab-events" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-slate-800 rounded-xl transition">
+          <i class="fas fa-calendar-alt w-5 text-center"></i> Events & Tickets
+        </a>
+      </nav>
+      <div class="p-4 border-t border-slate-800">
+        <button onclick="logout()" class="w-full flex items-center justify-center gap-2 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-8">
+      
+      <!-- Overview Tab -->
+      <div id="content-dashboard" class="tab-content">
+        <h2 class="text-3xl font-bold mb-6">System Overview</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div class="glass-panel p-6 rounded-2xl">
+            <h3 class="text-slate-400 text-sm font-medium mb-1">Total Users</h3>
+            <p id="stat-users" class="text-4xl font-bold text-white">0</p>
+          </div>
+          <div class="glass-panel p-6 rounded-2xl">
+            <h3 class="text-slate-400 text-sm font-medium mb-1">Active Events</h3>
+            <p id="stat-events" class="text-4xl font-bold text-white">0</p>
+          </div>
+          <div class="glass-panel p-6 rounded-2xl">
+            <h3 class="text-slate-400 text-sm font-medium mb-1">Total Tickets Booked</h3>
+            <p id="stat-tickets" class="text-4xl font-bold text-pink-500">0</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Users Tab -->
+      <div id="content-users" class="tab-content hidden">
+        <h2 class="text-3xl font-bold mb-6">Registered Users</h2>
+        <div class="glass-panel rounded-2xl overflow-hidden">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-800 text-slate-300 text-sm uppercase tracking-wider">
+                <th class="p-4">Name</th>
+                <th class="p-4">Email</th>
+                <th class="p-4">Joined</th>
+                <th class="p-4">Bookings</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody" class="divide-y divide-slate-800">
+              <!-- JS Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Events Tab -->
+      <div id="content-events" class="tab-content hidden">
+        <h2 class="text-3xl font-bold mb-6">Events & Ticket Sales</h2>
+        <div class="glass-panel rounded-2xl overflow-hidden">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-800 text-slate-300 text-sm uppercase tracking-wider">
+                <th class="p-4">Event Title</th>
+                <th class="p-4">Category</th>
+                <th class="p-4">Date</th>
+                <th class="p-4">Tickets Sold</th>
+                <th class="p-4">Attendees</th>
+              </tr>
+            </thead>
+            <tbody id="eventsTableBody" class="divide-y divide-slate-800">
+              <!-- JS Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:3000/api';
+    let adminToken = localStorage.getItem('adminToken');
+
+    // DOM Elements
+    const loginView = document.getElementById('loginView');
+    const dashboardView = document.getElementById('dashboardView');
+    const loginForm = document.getElementById('loginForm');
+    const loginError = document.getElementById('loginError');
+
+    // Init
+    if (adminToken) {
+      showDashboard();
+    }
+
+    // Login Handler
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      
+      loginError.classList.add('hidden');
+
+      try {
+        const res = await fetch(`${API_URL}/admin/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+          adminToken = data.data.token;
+          localStorage.setItem('adminToken', adminToken);
+          showDashboard();
+        } else {
+          loginError.textContent = data.message;
+          loginError.classList.remove('hidden');
+        }
+      } catch (err) {
+        loginError.textContent = 'Server error. Is the backend running?';
+        loginError.classList.remove('hidden');
+      }
+    });
+
+    function logout() {
+      localStorage.removeItem('adminToken');
+      adminToken = null;
+      dashboardView.classList.add('hidden');
+      loginView.classList.remove('hidden');
+      document.body.classList.add('items-center', 'justify-center');
+    }
+
+    function showDashboard() {
+      loginView.classList.add('hidden');
+      dashboardView.classList.remove('hidden');
+      document.body.classList.remove('items-center', 'justify-center');
+      fetchData();
+    }
+
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`content-${tabId}`).classList.remove('hidden');
+      
+      document.querySelectorAll('.nav-item').forEach(el => {
+        el.classList.remove('bg-pink-600', 'text-white');
+        el.classList.add('text-slate-300', 'hover:bg-slate-800');
+      });
+      const activeTab = document.getElementById(`tab-${tabId}`);
+      activeTab.classList.remove('text-slate-300', 'hover:bg-slate-800');
+      activeTab.classList.add('bg-pink-600', 'text-white');
+    }
+
+    async function fetchData() {
+      try {
+        const [usersRes, eventsRes] = await Promise.all([
+          fetch(`${API_URL}/admin/users`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
+          fetch(`${API_URL}/admin/events`, { headers: { 'Authorization': `Bearer ${adminToken}` } })
+        ]);
+
+        if (usersRes.status === 401 || eventsRes.status === 401) {
+          logout();
+          return;
+        }
+
+        const usersData = await usersRes.json();
+        const eventsData = await eventsRes.json();
+
+        renderDashboard(usersData.data, eventsData.data);
+      } catch (err) {
+        console.error('Error fetching admin data', err);
+      }
+    }
+
+    function renderDashboard(users, events) {
+      // Overview
+      document.getElementById('stat-users').textContent = users.length;
+      document.getElementById('stat-events').textContent = events.length;
+      
+      let totalTickets = 0;
+      events.forEach(e => totalTickets += (e.attendees ? e.attendees.length : 0));
+      document.getElementById('stat-tickets').textContent = totalTickets;
+
+      // Users Table
+      const usersHtml = users.map(u => `
+        <tr class="hover:bg-slate-800/50 transition">
+          <td class="p-4 font-medium">${u.name}</td>
+          <td class="p-4 text-slate-400">${u.email}</td>
+          <td class="p-4 text-slate-400">${new Date(u.createdAt).toLocaleDateString()}</td>
+          <td class="p-4"><span class="px-2 py-1 bg-slate-700 rounded text-xs">${u.bookings?.length || 0} bookings</span></td>
+        </tr>
+      `).join('');
+      document.getElementById('usersTableBody').innerHTML = usersHtml;
+
+      // Events Table
+      const eventsHtml = events.map(e => {
+        const attendeesCount = e.attendees ? e.attendees.length : 0;
+        const attendeesList = attendeesCount > 0 
+          ? `<div class="text-xs text-slate-400 mt-1">Booked by: ${e.attendees.map(a => a.name).join(', ')}</div>` 
+          : '<span class="text-xs text-slate-500">No bookings yet</span>';
+
+        return `
+        <tr class="hover:bg-slate-800/50 transition">
+          <td class="p-4 font-medium">${e.title}</td>
+          <td class="p-4"><span class="px-2 py-1 bg-pink-500/20 text-pink-400 rounded text-xs">${e.category?.name || 'Uncategorized'}</span></td>
+          <td class="p-4 text-slate-400">${new Date(e.eventDate).toLocaleDateString()}</td>
+          <td class="p-4 font-bold text-white">${attendeesCount} / ${e.availableTickets}</td>
+          <td class="p-4 max-w-xs truncate" title="${e.attendees?.map(a => a.name).join(', ')}">${attendeesList}</td>
+        </tr>
+        `;
+      }).join('');
+      document.getElementById('eventsTableBody').innerHTML = eventsHtml;
+    }
+  </script>
+</body>
+</html>

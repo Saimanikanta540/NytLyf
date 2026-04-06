@@ -21,20 +21,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 
-// Conditional import for MapView to avoid web crashes
-let MapView: any, Marker: any, PROVIDER_GOOGLE: any;
-if (Platform.OS !== 'web') {
-  const Maps = require('react-native-maps');
-  MapView = Maps.default;
-  Marker = Maps.Marker;
-  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
-}
 import { mockCategories, mockAds } from '../../src/data/mockData';
 import { useEvents } from '../../hooks/useEvents';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { HeroAdCarousel } from '../../src/components/ads/HeroAdCarousel';
 import { AdBanner } from '../../src/components/ads/AdBanner';
 import { Event } from '../../src/types';
+import MapView, { Marker, PROVIDER_GOOGLE } from '../../src/components/ui/MapView';
 
 const { width, height } = Dimensions.get('window');
 
