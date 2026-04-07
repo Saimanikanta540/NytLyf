@@ -31,7 +31,7 @@ exports.getAdminStats = async (req, res) => {
 // @access  Private/Admin
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-password');
+    const users = await User.find().select('-password').sort('-createdAt');
     res.status(200).json({
       success: true,
       count: users.length,

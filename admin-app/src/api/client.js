@@ -10,7 +10,9 @@ const client = axios.create({
 client.interceptors.request.use((config) => {
   const token = localStorage.getItem('admin_token');
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    // Make sure we just attach 'Bearer <token>' securely without quotes
+    const cleanToken = token.replace(/['"]+/g, '');
+    config.headers.Authorization = `Bearer ${cleanToken}`;
   }
   return config;
 });
@@ -26,6 +28,10 @@ export const getAllUsers = () => client.get('/users/admin/all');
 
 // Events Management
 export const getAllEvents = () => client.get('/events');
+export const getEvent = (id) => client.get(`/events/${id}`);
+export const createEvent = (eventData) => client.post('/events', eventData);
+export const updateEvent = (id, eventData) => client.put(`/events/${id}`, eventData);
+export const deleteEvent = (id) => client.delete(`/events/${id}`);
 
 // Categories
 export const getCategories = () => client.get('/categories');

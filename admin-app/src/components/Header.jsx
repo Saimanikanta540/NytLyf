@@ -18,7 +18,7 @@ const Header = () => {
       <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
         <Bell size={20} color="#A0A0B0" style={{ cursor: 'pointer' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#1A1A24', display: 'flex', alignItems: 'center', justifyCenter: 'center' }}>
+          <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#1A1A24', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <User size={18} color="#00D9FF" style={{ margin: 'auto' }} />
           </div>
           <span style={{ fontSize: '0.875rem' }}>Administrator</span>

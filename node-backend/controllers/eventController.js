@@ -104,6 +104,62 @@ exports.getEventsByCategory = async (req, res) => {
   }
 };
 
+// @desc    Update event
+// @route   PUT /api/events/:id
+// @access  Private/Admin or Organizer
+exports.updateEvent = async (req, res) => {
+  try {
+    let event = await Event.findById(req.params.id);
+
+    if (!event) {
+      return res.status(404).json({ success: false, message: `Event not found with id of ${req.params.id}` });
+    }
+
+    // Make sure user is event organizer or admin
+    if (event.organizer.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: `User ${req.user.id} is not authorized to update this event` });
+    }
+
+    event = await Event.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
+
+    res.status(200).json({
+      success: true,
+      data: event
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Delete event
+// @route   DELETE /api/events/:id
+// @access  Private/Admin or Organizer
+exports.deleteEvent = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+
+    if (!event) {
+      return res.status(404).json({ success: false, message: `Event not found with id of ${req.params.id}` });
+    }
+
+    // Make sure user is event organizer or admin
+    if (event.organizer.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: `User ${req.user.id} is not authorized to delete this event` });
+    }
+
+    await event.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      data: {}
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 // @desc    Search events
 // @route   GET /api/events/search
 // @access  Public

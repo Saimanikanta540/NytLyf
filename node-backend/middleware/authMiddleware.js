@@ -27,10 +27,13 @@ const protect = async (req, res, next) => {
 // Grant access to specific roles
 const authorize = (...roles) => {
   return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'User not found or not authenticated' });
+    }
+    if (!roles.includes(req.user.role) && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
-        message: `User role ${req.user.role} is not authorized to access this route`
+        message: `User role ${req.user.role || 'undefined'} is not authorized to access this route`
       });
     }
     next();

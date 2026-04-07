@@ -197,7 +197,7 @@ label {
   color: var(--text-secondary);
 }
 
-input {
+input, select, textarea {
   width: 100%;
   background-color: var(--bg-primary);
   border: 1px solid var(--border);
@@ -205,10 +205,27 @@ input {
   padding: 0.75rem 1rem;
   border-radius: 0.75rem;
   outline: none;
+  font-family: inherit;
 }
 
-input:focus {
+input:focus, select:focus, textarea:focus {
   border-color: var(--neon-blue);
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--neon-pink);
+}
+
+.checkbox-group label {
+  margin-bottom: 0;
 }
 
 button {

@@ -19,8 +19,8 @@ const seedDatabase = async () => {
     console.log('Destroying old data...');
     await Event.deleteMany();
     await Category.deleteMany();
-    // Only delete our specific seed organizer to preserve other users you might have created
-    await User.deleteMany({ email: 'organizer@nytlyf.com' });
+    // Only delete our specific seed users to preserve other users you might have created
+    await User.deleteMany({ email: { $in: ['organizer@nytlyf.com', 'admin540@gmail.com'] } });
 
     // 1. Create a default Organizer User
     const organizer = await User.create({
@@ -34,6 +34,7 @@ const seedDatabase = async () => {
       name: 'Super Admin',
       email: 'admin540@gmail.com',
       password: 'admin540',
+      role: 'admin',
       isAdmin: true
     });
     console.log('Created Seed Organizer & Admin');

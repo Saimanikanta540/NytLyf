@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../api/client';
 import { Lock, Mail, AlertCircle } from 'lucide-react';
@@ -10,6 +10,11 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Always start with a clean slate when hitting the login page
+  useEffect(() => {
+    localStorage.removeItem('admin_token');
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -17,10 +22,13 @@ const Login = () => {
 
     try {
       const { data } = await login(email, password);
-      // For now we check if it's admin or if we just want to allow the specific creds
-      // In a real app we'd verify the role in the JWT or response
-      localStorage.setItem('admin_token', data.data.token);
-      navigate('/');
+      if (data && data.data && data.data.token) {
+        localStorage.setItem('admin_token', data.data.token);
+        // Force a small delay to ensure localstorage sets and interceptor picks it up
+        setTimeout(() => navigate('/'), 100);
+      } else {
+        setError('Invalid response from server.');
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
     } finally {

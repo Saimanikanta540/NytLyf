@@ -5,9 +5,11 @@ const {
   getEvents,
   getEvent,
   getEventsByCategory,
-  searchEvents
+  searchEvents,
+  updateEvent,
+  deleteEvent
 } = require('../controllers/eventController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -31,6 +33,9 @@ router.route('/')
     createEvent
   );
 
-router.route('/:id').get(getEvent);
+router.route('/:id')
+  .get(getEvent)
+  .put(protect, authorize('admin', 'organizer'), updateEvent)
+  .delete(protect, authorize('admin', 'organizer'), deleteEvent);
 
 module.exports = router;
